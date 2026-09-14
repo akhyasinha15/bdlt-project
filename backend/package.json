@@ -1,0 +1,16 @@
+{
+  "name": "bdlt-backend",
+  "version": "1.0.0",
+  "description": "Backend for Blockchain-Based Document Verification System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "ethers": "^6.13.0",
+    "qrcode": "^1.5.3",
+    "cors": "^2.8.5"
+  }
+}

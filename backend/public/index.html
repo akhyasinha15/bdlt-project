@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Blockchain Document Verification System</title>
+<style>
+  :root {
+    --purple: #6c5ce7;
+    --green: #1e824c;
+    --red: #c0392b;
+    --bg: #f7f7fb;
+    --border: #e0e0ea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: var(--bg);
+    margin: 0;
+    padding: 40px 20px;
+    color: #222;
+  }
+  h1 { text-align: center; margin-bottom: 4px; }
+  p.subtitle { text-align: center; color: #666; margin-top: 0; }
+  .tabs {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 30px 0;
+  }
+  .tab {
+    padding: 10px 24px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    cursor: pointer;
+    background: white;
+    font-weight: 600;
+  }
+  .tab.active { background: var(--purple); color: white; border-color: var(--purple); }
+  .panel {
+    max-width: 560px;
+    margin: 0 auto;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    display: none;
+  }
+  .panel.active { display: block; }
+  label { display: block; font-weight: 600; margin-bottom: 6px; margin-top: 16px; }
+  input[type=text], input[type=file] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  button {
+    margin-top: 22px;
+    width: 100%;
+    padding: 12px;
+    background: var(--purple);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .result {
+    margin-top: 22px;
+    padding: 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    word-break: break-all;
+    display: none;
+  }
+  .result.show { display: block; }
+  .result.ok { background: #eafaf1; border: 1px solid var(--green); }
+  .result.bad { background: #fdedec; border: 1px solid var(--red); }
+  .result img { display: block; margin: 12px auto 0; width: 160px; height: 160px; }
+  .row { margin: 4px 0; }
+  .row b { display: inline-block; width: 130px; }
+</style>
+</head>
+<body>
+
+<h1>Document Verification System</h1>
+<p class="subtitle">Blockchain-backed proof of document authenticity</p>
+
+<div class="tabs">
+  <div class="tab active" id="tab-register" onclick="switchTab('register')">Register a Document</div>
+  <div class="tab" id="tab-verify" onclick="switchTab('verify')">Verify a Document</div>
+</div>
+
+<!-- REGISTER PANEL -->
+<div class="panel active" id="panel-register">
+  <label>Certificate / Document ID</label>
+  <input type="text" id="certificateId" placeholder="e.g. VIT-2026-CS-0045" />
+
+  <label>Choose file to register</label>
+  <input type="file" id="registerFile" />
+
+  <button onclick="registerDocument()" id="registerBtn">Register on Blockchain</button>
+
+  <div class="result" id="registerResult"></div>
+</div>
+
+<!-- VERIFY PANEL -->
+<div class="panel" id="panel-verify">
+  <label>Choose file to verify</label>
+  <input type="file" id="verifyFile" />
+
+  <button onclick="verifyDocument()" id="verifyBtn">Verify Authenticity</button>
+
+  <div class="result" id="verifyResult"></div>
+</div>
+
+<script>
+function switchTab(name) {
+  document.getElementById('tab-register').classList.toggle('active', name === 'register');
+  document.getElementById('tab-verify').classList.toggle('active', name === 'verify');
+  document.getElementById('panel-register').classList.toggle('active', name === 'register');
+  document.getElementById('panel-verify').classList.toggle('active', name === 'verify');
+}
+
+async function registerDocument() {
+  const fileInput = document.getElementById('registerFile');
+  const certificateId = document.getElementById('certificateId').value;
+  const resultBox = document.getElementById('registerResult');
+  const btn = document.getElementById('registerBtn');
+
+  if (!fileInput.files.length) { alert('Please choose a file first.'); return; }
+
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+  formData.append('certificateId', certificateId);
+
+  btn.disabled = true; btn.textContent = 'Registering on-chain...';
+  resultBox.className = 'result'; resultBox.innerHTML = '';
+
+  try {
+    const res = await fetch('/api/register', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed');
+
+    resultBox.className = 'result show ok';
+    resultBox.innerHTML = `
+      <div class="row"><b>Status:</b> Registered ✅</div>
+      <div class="row"><b>Certificate ID:</b> ${data.certificateId}</div>
+      <div class="row"><b>Document Hash:</b> ${data.documentHash}</div>
+      <div class="row"><b>Issuer Wallet:</b> ${data.issuer}</div>
+      <div class="row"><b>Tx Hash:</b> ${data.txHash}</div>
+      <img src="${data.qrCode}" alt="QR Code" />
+    `;
+  } catch (err) {
+    resultBox.className = 'result show bad';
+    resultBox.innerHTML = `<b>Error:</b> ${err.message}`;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Register on Blockchain';
+  }
+}
+
+async function verifyDocument() {
+  const fileInput = document.getElementById('verifyFile');
+  const resultBox = document.getElementById('verifyResult');
+  const btn = document.getElementById('verifyBtn');
+
+  if (!fileInput.files.length) { alert('Please choose a file first.'); return; }
+
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+
+  btn.disabled = true; btn.textContent = 'Checking against blockchain...';
+  resultBox.className = 'result'; resultBox.innerHTML = '';
+
+  try {
+    const res = await fetch('/api/verify', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed');
+
+    const ok = data.isValid;
+    resultBox.className = 'result show ' + (ok ? 'ok' : 'bad');
+    resultBox.innerHTML = `
+      <div class="row"><b>Status:</b> ${ok ? 'AUTHENTIC ✅' : 'MODIFIED / NOT REGISTERED ❌'}</div>
+      <div class="row"><b>Document Hash:</b> ${data.documentHash}</div>
+      ${ok ? `
+        <div class="row"><b>Certificate ID:</b> ${data.certificateId}</div>
+        <div class="row"><b>Issuer Wallet:</b> ${data.issuer}</div>
+        <div class="row"><b>Registered At:</b> ${data.timestamp}</div>
+      ` : ''}
+    `;
+  } catch (err) {
+    resultBox.className = 'result show bad';
+    resultBox.innerHTML = `<b>Error:</b> ${err.message}`;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Verify Authenticity';
+  }
+}
+</script>
+
+</body>
+</html>
